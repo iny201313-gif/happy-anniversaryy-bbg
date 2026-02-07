@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Winding Wand Photo Booth</title>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #ffe6ee, #ffc2d1);
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #9b0000;
+      user-select: none;
+    }
+
+    .booth {
+      width: 95%;
+      max-width: 950px;
+      background: #fff0f5;
+      border-radius: 22px;
+      padding: 20px;
+      box-shadow: 0 12px 30px rgba(255,0,0,0.25);
+      text-align: center;
+    }
+
+    h1 {
+      color: #c1121f;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      font-size: 0.95rem;
+      margin-bottom: 18px;
+    }
+
+    /* PHOTO HOLDER */
+    .photo-holder {
+      background: #ffd6e0;
+      padding: 15px;
+      border-radius: 18px;
+      margin-bottom: 25px;
+    }
+
+    .photos {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 12px;
+    }
+
+    .photo {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      background: #ffb3c6;
+      border-radius: 14px;
+      overflow: hidden;
+      opacity: 0;
+      transform: translateY(20px) scale(0.85);
+      transition: all 0.45s ease;
+    }
+
+    .photo.visible {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+
+    .photo img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* WAND */
+    .wand-zone {
+      margin-top: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .wand-label {
+      font-weight: 600;
+    }
+
+    .wand-wrapper {
+      width: 160px;
+      height: 160px;
+      border-radius: 50%;
+      background: radial-gradient(circle, #ffccd5, #ff8fab);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: grab;
+    }
+
+    .wand-wrapper:active { cursor: grabbing; }
+
+    .wand {
+      width: 18px;
+      height: 110px;
+      background: linear-gradient(#c1121f, #ff4d6d);
+      border-radius: 10px;
+      transform-origin: bottom center;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+    }
+
+    .hint {
+      font-size: 0.85rem;
+      color: #8b0000;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="booth">
+    <h1>🪄 Wind the Wand</h1>
+    <div class="subtitle">Drag and rotate the wand to reveal photos & hear the voice note</div>
+
+    <!-- PHOTO HOLDER -->
+    <div class="photo-holder">
+      <div class="photos" id="photos">
+        <!-- ADD 7–10 IMAGES MAX -->
+        <div class="photo"><img src="images/1.jpg"></div>
+        <div class="photo"><img src="images/2.jpg"></div>
+        <div class="photo"><img src="images/3.jpg"></div>
+        <div class="photo"><img src="images/4.jpg"></div>
+        <div class="photo"><img src="images/5.jpg"></div>
+        <div class="photo"><img src="images/6.jpg"></div>
+        <div class="photo"><img src="images/7.jpg"></div>
+      </div>
+    </div>
+
+    <!-- WAND -->
+    <div class="wand-zone">
+      <div class="wand-label">Rotate the Wand</div>
+      <div class="wand-wrapper" id="wandWrapper">
+        <div class="wand" id="wand"></div>
+      </div>
+      <div class="hint">Stop rotating = everything pauses 💗</div>
+    </div>
+
+    <!-- AUDIO -->
+    <audio id="voiceNote" src="audio/voice.mp3"></audio>
+  </div>
+
+  <script>
+    const wrapper = document.getElementById('wandWrapper');
+    const wand = document.getElementById('wand');
+    const photos = Array.from(document.querySelectorAll('.photo'));
+    const audio = document.getElementById('voiceNote');
+
+    let isDragging = false;
+    let lastAngle = 0;
+    let progress = 0; // 0 → 1
+
+    function getAngle(e) {
+      const rect = wrapper.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const x = (e.touches ? e.touches[0].clientX : e.clientX) - cx;
+      const y = (e.touches ? e.touches[0].clientY : e.clientY) - cy;
+      return Math.atan2(y, x) * (180 / Math.PI);
+    }
+
+    function updateExperience(delta) {
+      progress = Math.min(1, Math.max(0, progress + delta));
+
+      // reveal photos
+      const revealCount = Math.floor(progress * photos.length);
+      photos.forEach((p, i) => {
+        if (i < revealCount) p.classList.add('visible');
+      });
+
+      // audio control
+      if (audio.duration) {
+        audio.currentTime = progress * audio.duration;
+      }
+      if (audio.paused) audio.play();
+    }
+
+    function pauseExperience() {
+      audio.pause();
+    }
+
+    wrapper.addEventListener('mousedown', e => {
+      isDragging = true;
+      lastAngle = getAngle(e);
+    });
+
+    wrapper.addEventListener('mousemove', e => {
+      if (!isDragging) return;
+      const angle = getAngle(e);
+      const delta = (angle - lastAngle) / 720; // smooth winding
+      wand.style.transform = `rotate(${angle}deg)`;
+      updateExperience(delta);
+      lastAngle = angle;
+    });
+
+    window.addEventListener('mouseup', () => {
+      isDragging = false;
+      pauseExperience();
+    });
+
+    // Mobile support
+    wrapper.addEventListener('touchstart', e => {
+      isDragging = true;
+      lastAngle = getAngle(e);
+    });
+
+    wrapper.addEventListener('touchmove', e => {
+      if (!isDragging) return;
+      const angle = getAngle(e);
+      const delta = (angle - lastAngle) / 720;
+      wand.style.transform = `rotate(${angle}deg)`;
+      updateExperience(delta);
+      lastAngle = angle;
+    });
+
+    window.addEventListener('touchend', () => {
+      isDragging = false;
+      pauseExperience();
+    });
+  </script>
+</body>
+</html>
